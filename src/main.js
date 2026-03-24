@@ -8,6 +8,9 @@ import {
   getDocs,
   addDoc,
   serverTimestamp,
+  updateDoc,
+  arrayUnion,
+  arrayRemove,
 } from "firebase/firestore";
 
 // function showName() {
@@ -59,6 +62,7 @@ function showName() {
     // Get the user's Firestore document from the "users" collection
     // Document ID is the user's unique UID
     const userDoc = await getDoc(doc(db, "users", user.uid));
+    const userData = userDoc.data()
 
     // Determine which name to display:
     const name = userDoc.exists() // 1️⃣ Use Firestore name if document exists
@@ -69,6 +73,12 @@ function showName() {
     if (nameElement) {
       nameElement.textContent = `${name}!`;
     }
+
+    const bookmarks = userData.bookmarks || [];
+    console.log(bookmarks)
+    console.log('test')
+    await displayCardsDynamically(user.uid, bookmarks)
+
   });
 }
 
@@ -161,7 +171,8 @@ async function seedHikes() {
 // Call the seeding function when the main.html page loads.
 seedHikes();
 
-async function displayCardsDynamically() {
+async function displayCardsDynamically(userID, bookmarks) {
+  // console.log(userID, bookmarks);
   let cardTemplate = document.getElementById("hikeCardTemplate");
   const hikesCollectionRef = collection(db, "hikes");
 
@@ -178,8 +189,26 @@ async function displayCardsDynamically() {
       newcard.querySelector(".card-text").textContent =
         hike.details || `Located in ${hike.city}.`;
       newcard.querySelector(".card-length").textContent = hike.length;
-      newcard.querySelector(".read-more").href = `eachHike.html?docID=${doc.id}`;
-      newcard.querySelector('.card-image').src = `./images/${hike.code}.png`;
+      newcard.querySelector(
+        ".read-more"
+      ).href = `eachHike.html?docID=${doc.id}`;
+      newcard.querySelector(".card-image").src = `../public/images/${hike.code}.png`;
+
+      //update bookmark stuff
+
+      //assign unique id to each bookmark icon
+      const hikeDocID = doc.id
+      const icon = newcard.querySelector("i.material-icons")
+      icon.id = "save-" + hikeDocID
+
+      //check db if hike is bookmarked
+      const isBookmarked = bookmarks.includes(hikeDocID)
+
+      //change icon look if bookmarked
+      icon.innerText = isBookmarked ? "bookmark" : "bookmark_border";
+
+      //call func to toggle and untoggle the bm icon and write in db
+      icon.onclick =()=> toggleBookmark(userID, hikeDocID)
 
       // Attach the new card to the container
       document.getElementById("hikes-go-here").appendChild(newcard);
@@ -189,5 +218,37 @@ async function displayCardsDynamically() {
   }
 }
 
+async function toggleBookmark(userID, hikeDocID){
+  //get user info+bm info
+  const userRef = doc(db, "users", userID);
+  const userSnap = await getDoc(userRef);
+  const userData = userSnap.data() || [];
+  const bookmark = userData.bookmarks || [];
+  const isBookmarked = bookmark.includes(hikeDocID)
+
+  //construct icon id
+  const iconId = "save-"+hikeDocID;
+  const icon = document.getElementById(iconId)
+
+  //update db
+  try{
+    if(isBookmarked){
+      //already BM, need to be unbookmarked
+      await updateDoc(userRef, {
+        bookmarks: arrayRemove(hikeDocID)
+      });
+      icon.innerText = "bookmark_border"
+    } else {
+      await updateDoc(userRef, {
+        bookmarks: arrayUnion(hikeDocID)
+      });
+      icon.innerText = "bookmark"
+
+    }
+    
+  }catch(error){
+    console.error(error)
+  }
+}
 // Call the function to display cards when the page loads
-displayCardsDynamically();
+// displayCardsDynamically();

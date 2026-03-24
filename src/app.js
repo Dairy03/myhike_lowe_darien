@@ -1,6 +1,6 @@
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap";
-// import { onAuthReady } from "./authentication.js";
+import { onAuthReady } from "./authentication.js";
 
 function showName() {
   const nameElement = document.getElementById("name-goes-here"); // the <h1> element to display "Hello, {name}"
